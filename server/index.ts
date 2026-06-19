@@ -2,6 +2,7 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
+import z from 'zod';
 
 dotenv.config();
 
@@ -24,7 +25,23 @@ app.get('/api/hello', (_request: Request, response: Response) => {
 // In a real scenario this conversation map should be saved in the database
 const conversations = new Map<string, string>();
 
+const chatSchema = z.object({
+  prompt: z
+    .string()
+    .trim()
+    .min(1, 'Prompt is required')
+    .max(1000, 'Prompt is too long (max 1000 characters)'),
+  conversationId: z.uuid(),
+});
+
 app.post('/api/chat', async (request: Request, response: Response) => {
+  const validation = chatSchema.safeParse(request.body);
+
+  if (!validation.success) {
+    response.status(400).json(validation.error.format());
+    return;
+  }
+
   const { prompt, conversationId } = request.body;
 
   const gptResponse = await client.responses.create({

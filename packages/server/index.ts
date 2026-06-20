@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
 import z from 'zod';
+import { ConversationRepository } from './repositories/conversation.repository';
 
 dotenv.config();
 
@@ -21,9 +22,6 @@ app.get('/', (_request: Request, response: Response) => {
 app.get('/api/hello', (_request: Request, response: Response) => {
   response.json({ message: 'Hello World!' });
 });
-
-// In a real scenario this conversation map should be saved in the database
-const conversations = new Map<string, string>();
 
 const chatSchema = z.object({
   prompt: z
@@ -50,10 +48,11 @@ app.post('/api/chat', async (request: Request, response: Response) => {
       input: prompt,
       temperature: 0.2,
       max_output_tokens: 100,
-      previous_response_id: conversations.get(conversationId),
+      previous_response_id:
+        ConversationRepository.getLastResponseId(conversationId),
     });
 
-    conversations.set(conversationId, gptResponse.id);
+    ConversationRepository.setLastResponseId(conversationId, gptResponse.id);
 
     response.json({ message: gptResponse.output_text });
   } catch (error) {

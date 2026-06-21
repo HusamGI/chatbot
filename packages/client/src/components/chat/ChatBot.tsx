@@ -1,4 +1,4 @@
-import { Button } from './ui/button';
+import { Button } from '../ui/button';
 import { FaArrowUp } from 'react-icons/fa';
 import { useForm } from 'react-hook-form';
 import {
@@ -10,6 +10,7 @@ import {
 } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
+import TypingIndicator from './TypingIndicator';
 
 type FormData = {
   prompt: string;
@@ -30,26 +31,33 @@ const ChatBot = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isBotTyping, setIsBotTyping] = useState<boolean>(false);
   const lastMessageRef = useRef<HTMLDivElement | null>(null);
+  const [error, setError] = useState<string>('');
 
   useEffect(() => {
     lastMessageRef?.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const onSubmit = async ({ prompt }: FormData) => {
-    setMessages((prev) => [...prev, { content: prompt, role: 'user' }]);
+    try {
+      setMessages((prev) => [...prev, { content: prompt, role: 'user' }]);
 
-    reset({ prompt: '' });
+      setError('');
+      setIsBotTyping(true);
 
-    setIsBotTyping(true);
+      reset({ prompt: '' });
 
-    const { data } = await axios.post<ChatResponse>('/api/chat', {
-      prompt,
-      conversationId: conversationId.current,
-    });
+      const { data } = await axios.post<ChatResponse>('/api/chat', {
+        prompt,
+        conversationId: conversationId.current,
+      });
 
-    setIsBotTyping(false);
-
-    setMessages((prev) => [...prev, { content: data.message, role: 'bot' }]);
+      setMessages((prev) => [...prev, { content: data.message, role: 'bot' }]);
+    } catch (error) {
+      console.error(error);
+      setError('Something went wrong, try again!');
+    } finally {
+      setIsBotTyping(false);
+    }
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
@@ -84,13 +92,8 @@ const ChatBot = () => {
             <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
         ))}
-        {isBotTyping && (
-          <div className="flex gap-1 px-3 py-3 bg-gray-200 rounded-xl self-start">
-            <div className="w-2 h-2 rounded-full bg-gray-800 animate-pulse"></div>
-            <div className="w-2 h-2 rounded-full bg-gray-800 animate-pulse [animation-delay:0.2s]"></div>
-            <div className="w-2 h-2 rounded-full bg-gray-800 animate-pulse [animation-delay:0.4s]"></div>
-          </div>
-        )}
+        {isBotTyping && <TypingIndicator />}
+        {error && <p className="text-red-500">{error}</p>}
       </div>
       <form
         onSubmit={handleSubmit(onSubmit)}
